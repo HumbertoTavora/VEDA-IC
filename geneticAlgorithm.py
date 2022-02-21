@@ -391,12 +391,12 @@ def mutateV4(n,parent):
     return childGenes
 
 def geneticAlgorithm():
+
     global countGeneration
     global indexDeadGenes
     bestParent = generate_parent(24)
     bestFitness = get_fitness(24,bestParent)
     display(24,bestParent)
-
     fImprovedNetlist = open("Netlists improved.txt", 'a', encoding='utf-8')                                     # The file that save the improveds genomes
     fImprovedNetlist.write("\n")                                                                                # A \ n in the file to indent
     sbestParent = ' '.join(bestParent)                                                                          # Convert the child in str to append the genome in Netlists improved.txt
@@ -405,10 +405,9 @@ def geneticAlgorithm():
     indexDeadGenes = eachIndexDeadGenes.copy()
     print(indexDeadGenes)
     while True:
-        if(len(indexDeadGenes) <9 ):
+        if(len(indexDeadGenes) >= 6):
             child = mutateV4(n,bestParent)
-        else:
-            child = mutateV1(n,bestParent)
+    
         countGeneration = countGeneration + 1
         if(child == bestParent):                                                                                # if the child is the same of the parent (a failed mutate) try mutate again
             continue
@@ -422,11 +421,13 @@ def geneticAlgorithm():
         display(24,child)
         indexDeadGenes = eachIndexDeadGenes.copy()
         print(indexDeadGenes)
-        if childFitness >= 1:
+        if (childFitness >= 1 or countGeneration>=10000):
             break
         bestFitness = childFitness
         bestParent = child
 
+    
     fImprovedNetlist.close()
+
 
 geneticAlgorithm()
