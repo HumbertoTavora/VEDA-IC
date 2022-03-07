@@ -1,5 +1,6 @@
 from operator import index
 from random import *
+from dataStructures import Stack
 import random
 import datetime
 import os
@@ -73,23 +74,36 @@ def verilog_maker_by_genome(n,netlist):
         return frase
 
     def withdraw_deadGenes(netlist,n):  #Withdraw the genes that won't be used in any other position of the genome
-        
-        for j in range(0,n-1):          #
-            for i in range (0,n):       #The iº gene of the genome. To each element of the list (each gene of genome) exception by the last (the last one is necessarily the output of the system).
-                nin1 = netlist[i][0:2]  #The fisrt half (the input1)
-                nin2 = netlist[i][2:4]  #The first half (the input2)
+        count = 1
+        s = Stack()
+        global eachIndexDeadGenes 
+        while(True):
+            eachIndexDeadGenes = []
+            for j in range(0,n-1):          #
+                for i in range (0,n):       #The iº gene of the genome. To each element of the list (each gene of genome) exception by the last (the last one is necessarily the output of the system).
+                    nin1 = netlist[i][0:2]  #The fisrt half (the input1)
+                    nin2 = netlist[i][2:4]  #The first half (the input2)
 
-                if(j+4 < 10):
-                    elementSearch = "0"+str(j+4)
-                else:
-                    elementSearch = str(j+4)
+                    if(j+4 < 10):
+                        elementSearch = "0"+str(j+4)
+                    else:
+                        elementSearch = str(j+4)
 
-                if(elementSearch == nin1 or elementSearch == nin2):
+                    if(elementSearch == nin1 or elementSearch == nin2):
+                        break
+
+                    elif(i == n-1):
+                        eachIndexDeadGenes.append(j)
+                        netlist[j] = "xxxx"
+
+            s.push(len(eachIndexDeadGenes))
+
+            if s.size() == 2:
+                felement = s.pop()
+                selement = s.pop()
+                if(selement == felement):
                     break
-
-                elif(i == n-1):
-                    eachIndexDeadGenes.append(j)
-                    netlist[j] = "xxxx"
+                s.push(felement)
 
     def modela_inputs(nin,i):
 
@@ -405,8 +419,8 @@ def geneticAlgorithm():
     indexDeadGenes = eachIndexDeadGenes.copy()
     print(indexDeadGenes)
     while True:
-        if(len(indexDeadGenes) >= 6):
-            child = mutateV4(n,bestParent)
+
+        child = mutateV4(n,bestParent)
     
         countGeneration = countGeneration + 1
         if(child == bestParent):                                                                                # if the child is the same of the parent (a failed mutate) try mutate again
