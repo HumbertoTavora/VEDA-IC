@@ -10,7 +10,9 @@ n = 24
                                                                         # The random.sample() ensures that each index will not be the repeated
 index1, index2, index3, index4 = random.sample(list(range(0,n-1)), 4)   # including the 4 inputs in a random position of the genome (Exception by the last position OUTPUT)
 indexDeadGenes = []
-eachIndexDeadGenes = [] 
+eachIndexDeadGenes = []
+indexActiveGenes = []
+eachIndexActiveGenes = [] 
 startTime = datetime.datetime.now()                # Start a timer to get each time of improvement of the genome
 data_atual = datetime.datetime.today()             # Get the actual time and date to document the in "Netlists improved.txt"
 countGeneration = 1
@@ -76,7 +78,8 @@ def verilog_maker_by_genome(n,netlist):
     def withdraw_deadGenes(netlist,n):  #Withdraw the genes that won't be used in any other position of the genome
         count = 1
         s = Stack()
-        global eachIndexDeadGenes 
+        global eachIndexDeadGenes
+        global eachIndexActiveGenes
         while(True):
             eachIndexDeadGenes = []
             for j in range(0,n-1):          #
@@ -93,8 +96,8 @@ def verilog_maker_by_genome(n,netlist):
                         break
 
                     elif(i == n-1):
-                        eachIndexDeadGenes.append(j)
                         netlist[j] = "xxxx"
+                        eachIndexDeadGenes.append(j)
 
             s.push(len(eachIndexDeadGenes))
 
@@ -104,6 +107,11 @@ def verilog_maker_by_genome(n,netlist):
                 if(selement == felement):
                     break
                 s.push(felement)
+
+        for i in range(0,n):
+            if(netlist[i] != "xxxx"):
+                eachIndexActiveGenes.append(i)
+                
 
     def modela_inputs(nin,i):
 
@@ -143,7 +151,7 @@ def verilog_maker_by_genome(n,netlist):
     
         count = 4
         for i in range(0,n):
-            
+
             if(count <10):                    # threat <10 cases ( 9 != 09 ) 1,2,3,4,5,6,7,8,9
                 nout = "0"+str(count)
             else:
@@ -151,10 +159,9 @@ def verilog_maker_by_genome(n,netlist):
             count = count + 1
             nin1 = vmbg_netlist[i][0:2]            # 0202 0303 0404 0505 0603 0207 0805 0409 1011 1213 0000 0000 1414 1515 0000 0000 1815 1914 0000 0000 0000 0000 0000 2223
             nin2 = vmbg_netlist[i][2:4]
-            
-            
-            if nin1 != "xx":
-                
+
+            if (nin1 != "xx" or nin1 == nout or nin2 == nout):
+
                 in1 = modela_inputs(nin1,i)
                 in2 = modela_inputs(nin2,i)
                 out = modela_outputs(nout,i,n)
@@ -186,14 +193,14 @@ def get_fitness_by_outputs(nOutputs):
 
     return rfitness
 
-def display(n,guess):
+def display(n,guess, fitness):
   sguess = ' '.join(guess)
   timeDiff = datetime.datetime.now() - startTime
-  fitness = get_fitness(n,guess)
   print("{0}\t {1}\t {2}\t Geração: {3}\n ".format(sguess, fitness, str(timeDiff), countGeneration))
 
 def get_fitness(n,genome):
     eachIndexDeadGenes.clear()
+    eachIndexActiveGenes.clear()
     verilog_maker_by_genome(n,genome)
     os.system('cmd /c "iverilog -o prog GPINAND_tb.v GPINAND.v"') 
     os.system('cmd /c "vvp prog"') 
@@ -342,8 +349,11 @@ def mutateV3(n,parent):
 def mutateV4(n,parent):
    
     arrayIndex = []
+    activeMutationIndex = int(len(eachIndexActiveGenes) * 0.1)  # 10% of the active genes will be mutate
+    deadMutationIndex = 2
 
-    indexMut1,indexMut2 = random.sample(indexDeadGenes, 2)            
+
+    indexMut1,indexMut2 = random.sample(indexDeadGenes, deadMutationIndex)            
     indexMut3,indexMut4 = (indexMut1+1, indexMut2+1)            # take the 2 index that will be mutate / The range funcion create a sequence of number until n not including itself
     
     while(indexMut3 in indexDeadGenes):
@@ -367,12 +377,12 @@ def mutateV4(n,parent):
         index = int(arrayIndex[i])  
         if(i == 2):
             newGene = indexMut1 + 4 
-            alternate = indexMut1 + 4     
-        if(i == 3):
+            alternate = indexMut1 + 4
+        elif(i == 3):
             newGene = indexMut2 + 4
             alternate = indexMut2 + 4
         else:    
-            newGene,alternate = random.sample(list(range(0,index+4)),2)                      # generate the random value by the rule NumberInput < NumberPosition (adding 4 by the inputs) / The range funcion create a sequence of number until n not including itself
+            newGene,alternate = random.sample(list(range(0,index+3)),2)                      # generate the random value by the rule NumberInput < NumberPosition (adding 4 by the inputs) / The range funcion create a sequence of number until n not including itself
                                                                                              # generate another random value (to the case that the newGene is the same of the oldGene)
 
         if newGene < 10:
@@ -404,44 +414,62 @@ def mutateV4(n,parent):
     
     return childGenes
 
+def saveNetlists(generation, fitness, countGeneration):
+    fImprovedNetlist = open("Netlists improved.txt", 'a', encoding='utf-8')      # The file that save the improveds genomes
+    
+    fImprovedNetlist.write("\n")                                                 # A \ n in the file to indent
+    sbestParent = ' '.join(generation)                                           # Convert the child in str to append the genome in Netlists improved.txt
+    appendFile = sbestParent+" at "+str(data_atual)+ " " + str(fitness) + " Geração: "+str(countGeneration) + "\n"  # Make the string format to append
+    fImprovedNetlist.write(appendFile)                                           # Append the string in Netlists improved.txt 
+    fImprovedNetlist.close()
+    
 def geneticAlgorithm():
 
     global countGeneration
     global indexDeadGenes
-    bestParent = generate_parent(24)
-    bestFitness = get_fitness(24,bestParent)
-    display(24,bestParent)
-    fImprovedNetlist = open("Netlists improved.txt", 'a', encoding='utf-8')                                     # The file that save the improveds genomes
-    fImprovedNetlist.write("\n")                                                                                # A \ n in the file to indent
-    sbestParent = ' '.join(bestParent)                                                                          # Convert the child in str to append the genome in Netlists improved.txt
-    appendFile = sbestParent+" at "+str(data_atual)+ " " + str(bestFitness) + " Geração: "+str(countGeneration) + "\n"  # Make the string format to append
-    fImprovedNetlist.write(appendFile)                                                                              # Append the string in Netlists improved.txt 
-    indexDeadGenes = eachIndexDeadGenes.copy()
-    print(indexDeadGenes)
-    while True:
-
-        child = mutateV4(n,bestParent)
+    global eachIndexDeadGenes
+    global indexActiveGenes
+    global eachIndexActiveGenes
     
+    fImprovedNetlist = open("Netlists improved.txt", 'a', encoding='utf-8')      # 
+    fImprovedNetlist.write("\n")                                                 # Put a \n in the end of the file to indent
+    fImprovedNetlist.close()                                                     # 
+
+
+    bestParent = generate_parent(24)                # Generate the first generation (The first Parent)
+    bestFitness = get_fitness(24,bestParent)        # Get the first generation fitness
+    display(24,bestParent, bestFitness)
+
+    saveNetlists(bestParent, bestFitness, countGeneration) # The file that save the improveds genomes
+
+    indexDeadGenes = eachIndexDeadGenes.copy()
+    indexActiveGenes = eachIndexActiveGenes.copy()
+    print(indexDeadGenes)
+    print(indexActiveGenes)
+
+
+    while True:
         countGeneration = countGeneration + 1
-        if(child == bestParent):                                                                                # if the child is the same of the parent (a failed mutate) try mutate again
+        
+        child = mutateV4(n,bestParent)   
+        if(child == bestParent):          # if the child is the same of the parent (a failed mutate) try mutate again
             continue
         childFitness = get_fitness(n,child)
         if bestFitness >= childFitness:
             continue
         
-        schild = ' '.join(child)                                                                                # Convert the child in str to append the genome in Netlists improved.txt
-        appendFile = schild+" at "+str(datetime.datetime.now())+" "+str(childFitness) + " Geração: "+str(countGeneration) + "\n"   # Make the string format to append
-        fImprovedNetlist.write(appendFile)                                                                      # Append the string in Netlists improved.txt
-        display(24,child)
+        saveNetlists(child, childFitness, countGeneration) # The file that save the improveds genomes
+
+        display(24,child, childFitness)
         indexDeadGenes = eachIndexDeadGenes.copy()
+        indexActiveGenes = eachIndexActiveGenes.copy()
         print(indexDeadGenes)
-        if (childFitness >= 1 or countGeneration>=10000):
+        print(indexActiveGenes)
+
+        if (childFitness >= 1 or countGeneration>=10000):    # if the child fitness is 1 or the we have more than 10000 tries of mutation to that child, end the algorithm
             break
         bestFitness = childFitness
         bestParent = child
-
-    
-    fImprovedNetlist.close()
 
 
 geneticAlgorithm()
