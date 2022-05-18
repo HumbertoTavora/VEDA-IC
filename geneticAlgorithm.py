@@ -4,6 +4,8 @@ from dataStructures import Stack
 import random
 import datetime
 import os
+import matplotlib.pyplot as plt
+import bisect
 #sblawid
 
 n = 24
@@ -15,7 +17,13 @@ indexActiveGenes = []
 eachIndexActiveGenes = [] 
 startTime = datetime.datetime.now()                # Start a timer to get each time of improvement of the genome
 data_atual = datetime.datetime.today()             # Get the actual time and date to document the in "Netlists improved.txt"
-countGeneration = 1
+countGeneration = 0
+totalCountGeneration = 0
+maxGeneration = 300000
+step = 1/16
+alpha = 0                                         # variable that define the criteria to the improvement
+histgramList = []
+
 
 def generate_parent(n):  
 
@@ -196,7 +204,7 @@ def get_fitness_by_outputs(nOutputs):
 def display(n,guess, fitness):
   sguess = ' '.join(guess)
   timeDiff = datetime.datetime.now() - startTime
-  print("{0}\t {1}\t {2}\t Geração: {3}\n ".format(sguess, fitness, str(timeDiff), countGeneration))
+  print("{0}\t {1}\t {2}\t Geração: {3}\n ".format(sguess, fitness, str(timeDiff), totalCountGeneration))
 
 def get_fitness(n,genome):
     eachIndexDeadGenes.clear()
@@ -347,53 +355,26 @@ def mutateV3(n,parent):
     return childGenes
 
 def mutateV4(n,parent):
-   
-    arrayIndex = []
-    activeMutationIndex = int(len(eachIndexActiveGenes) * 0.1)  # 10% of the active genes will be mutate
-    deadMutationIndex = 2
-
-
-    indexMut1,indexMut2 = random.sample(indexDeadGenes, deadMutationIndex)            
-    indexMut3,indexMut4 = (indexMut1+1, indexMut2+1)            # take the 2 index that will be mutate / The range funcion create a sequence of number until n not including itself
     
-    while(indexMut3 in indexDeadGenes):
-        indexMut3+=1
-    
-    while(indexMut4 in indexDeadGenes):
-        indexMut4+=1
-
-
-    
-    arrayIndex.append(indexMut1)                                                  # append the index1
-    arrayIndex.append(indexMut2)                                                  # append the index2
-    arrayIndex.append(indexMut3)                                                  # append the index3
-    arrayIndex.append(indexMut4)                                                  # append the index4
-
     childGenes = parent.copy()                                                    # a copy of the parente that will be mutate
-
-    i = 0
-
-    while (i<4):                                                                  # to each index in arrayIndex, do the mutation
-        index = int(arrayIndex[i])  
-        if(i == 2):
-            newGene = indexMut1 + 4 
-            alternate = indexMut1 + 4
-        elif(i == 3):
-            newGene = indexMut2 + 4
-            alternate = indexMut2 + 4
-        else:    
-            newGene,alternate = random.sample(list(range(0,index+3)),2)                      # generate the random value by the rule NumberInput < NumberPosition (adding 4 by the inputs) / The range funcion create a sequence of number until n not including itself
-                                                                                             # generate another random value (to the case that the newGene is the same of the oldGene)
+    
+    deadMutationIndex = int(len(indexDeadGenes) * 0.3)    # 50% of the active genes will be mutate
+    i=0
+    while(i < deadMutationIndex):
+        
+        indexMut = random.sample(indexDeadGenes, 1)
+        index = int(indexMut[0])
+        newGene,alternate = random.sample(list(range(0,index+3)),2)
 
         if newGene < 10:
             newGene = "0"+str(newGene)
         newGene = str(newGene)    
         if alternate < 10:
             alternate = "0"+str(alternate)
-        alternate = str(alternate)   
+        alternate = str(alternate)  
 
         inputPosition = randint(0,1)                            # in the random input of the gene (the first or second)
-        
+
         if inputPosition == 0:                                  # if the input that need to be mutate is the first:
             if index == index1 or index == index2 or index == index3 or  index == index4:    
                 return parent                                   # if the index of any mutate is the same of the inputs index, return parent
@@ -408,34 +389,78 @@ def mutateV4(n,parent):
                 childGenes[index] = str(childGenes[index][0:2]) + alternate
             else: 
                 childGenes[index] = str(childGenes[index][0:2]) + newGene
-        
 
-        i +=1
+        i+=1
+
+    activeMutationIndex = max(2,int(len(indexActiveGenes) * 0.4) ) # 20% of the active genes will be mutate
+    j = 0
+    while(j < activeMutationIndex):
+        indexMut = random.sample(indexActiveGenes, 1)
+        index = int(indexMut[0])
+        newGene,alternate = random.sample(list(range(0,index+3)),2)
+
+        if newGene < 10:
+            newGene = "0"+str(newGene)
+        newGene = str(newGene)    
+        if alternate < 10:
+            alternate = "0"+str(alternate)
+        alternate = str(alternate)   
+        
+        inputPosition = randint(0,1)                            # in the random input of the gene (the first or second)
+
+        if inputPosition == 0:                                  # if the input that need to be mutate is the first:
+            if index == index1 or index == index2 or index == index3 or  index == index4:    
+                return parent                                   # if the index of any mutate is the same of the inputs index, return parent
+
+            if newGene == childGenes[index][0:2]:
+                childGenes[index] = alternate + str(childGenes[index][2:4])     
+            else:
+                childGenes[index] = newGene + str(childGenes[index][2:4])
+
+        else:
+            if newGene == childGenes[index][2:4]:               # if the input that need to be mutate is the second:
+                childGenes[index] = str(childGenes[index][0:2]) + alternate
+            else: 
+                childGenes[index] = str(childGenes[index][0:2]) + newGene
+        j +=1
     
     return childGenes
 
 def saveNetlists(generation, fitness, countGeneration):
     fImprovedNetlist = open("Netlists improved.txt", 'a', encoding='utf-8')      # The file that save the improveds genomes
     
-    fImprovedNetlist.write("\n")                                                 # A \ n in the file to indent
+    data_atual = datetime.datetime.today()
     sbestParent = ' '.join(generation)                                           # Convert the child in str to append the genome in Netlists improved.txt
     appendFile = sbestParent+" at "+str(data_atual)+ " " + str(fitness) + " Geração: "+str(countGeneration) + "\n"  # Make the string format to append
     fImprovedNetlist.write(appendFile)                                           # Append the string in Netlists improved.txt 
     fImprovedNetlist.close()
-    
+
+def makeHistgram(childFitness):                                                  # make the histogram list
+    global histgramList                                                          
+    bisect.insort(histgramList,str(childFitness))                                # Using the bisect library, insert the fitness garanting the sorting
+
+def saveHistogram(histgramList):
+    fHistogram = open("histgramArray.txt", 'a', encoding='utf-8')
+    sHistgramList = ','.join(histgramList)                                           # Convert the histogram in str to append in histgramArray.txt
+    appendFile = sHistgramList
+    fHistogram.write(appendFile)                                                     
+    fHistogram.close()
+
 def geneticAlgorithm():
 
     global countGeneration
+    global totalCountGeneration
+    global histgramList
     global indexDeadGenes
     global eachIndexDeadGenes
     global indexActiveGenes
     global eachIndexActiveGenes
-    
+    global alpha    
+
     fImprovedNetlist = open("Netlists improved.txt", 'a', encoding='utf-8')      # 
     fImprovedNetlist.write("\n")                                                 # Put a \n in the end of the file to indent
-    fImprovedNetlist.close()                                                     # 
-
-
+    fImprovedNetlist.close()    
+    
     bestParent = generate_parent(24)                # Generate the first generation (The first Parent)
     bestFitness = get_fitness(24,bestParent)        # Get the first generation fitness
     display(24,bestParent, bestFitness)
@@ -447,29 +472,37 @@ def geneticAlgorithm():
     print(indexDeadGenes)
     print(indexActiveGenes)
 
-
+    
     while True:
         countGeneration = countGeneration + 1
-        
+        totalCountGeneration = totalCountGeneration + 1
+        if(countGeneration>=0.08*maxGeneration):
+            alpha = 3*step
+        if(totalCountGeneration>=maxGeneration):
+            break
         child = mutateV4(n,bestParent)   
+        childFitness = get_fitness(n,child)
+        makeHistgram(childFitness) 
         if(child == bestParent):          # if the child is the same of the parent (a failed mutate) try mutate again
             continue
-        childFitness = get_fitness(n,child)
-        if bestFitness >= childFitness:
+        if (bestFitness - alpha) >= childFitness:
             continue
         
-        saveNetlists(child, childFitness, countGeneration) # The file that save the improveds genomes
-
+        saveNetlists(child, childFitness, totalCountGeneration) # The file that save the improveds genomes
+        
         display(24,child, childFitness)
         indexDeadGenes = eachIndexDeadGenes.copy()
         indexActiveGenes = eachIndexActiveGenes.copy()
         print(indexDeadGenes)
         print(indexActiveGenes)
-
-        if (childFitness >= 1 or countGeneration>=10000):    # if the child fitness is 1 or the we have more than 10000 tries of mutation to that child, end the algorithm
+        countGeneration = 0
+        alpha = 0
+        if (childFitness >= 1):    # if the child fitness is 1 or the we have more than 10000 tries of mutation to that child, end the algorithm
             break
         bestFitness = childFitness
         bestParent = child
-
+        
 
 geneticAlgorithm()
+saveHistogram(histgramList)
+
